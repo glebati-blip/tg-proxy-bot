@@ -37,8 +37,7 @@ cd telegram-proxy-bot
 pip install requests python-telegram-bot schedule python-dotenv
 ```
 Создайте файл .env:
-```
-env
+env ```
 BOT_TOKEN=ваш_токен_от_BotFather
 CHAT_ID=ваш_id_от_userinfobot
 ```
