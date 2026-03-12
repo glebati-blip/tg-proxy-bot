@@ -498,9 +498,9 @@ def get_best_proxy():
         print(f" Сравнение: старый пинг {cached['ping']*1000:.0f}ms vs новый {new_ping*1000:.0f}ms")
         
         if hours_passed > 24:
-            print(f"🕐 Кэш устарел ({hours_passed:.1f} часов > 24), обновляю...")
+            print(f" Кэш устарел ({hours_passed:.1f} часов > 24), обновляю...")
             
-            print(f"📡 Пингую старый прокси: {cached['proxy_link'][:50]}...")
+            print(f" Пингую старый прокси: {cached['proxy_link'][:50]}...")
             old_proxy_data = None
             
             match = re.search(r'server=([^&]+)&port=(\d+)&secret=([^&\s]+)', cached['proxy_link'])
@@ -531,7 +531,7 @@ def get_best_proxy():
                     })
                     return new_link, new_region, new_ping
             else:
-                print(f"❌ Старый прокси не отвечает, использую новый")
+                print(f" Старый прокси не отвечает, использую новый")
                 update_best_proxy({
                     'link': new_link,
                     'region': new_region,
@@ -692,7 +692,7 @@ async def proxy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_allowed(user_id):
         return
     
-    msg = await update.message.reply_text(" Ищу лучший прокси... Подожди немного...")
+    msg = await update.message.reply_text(" Ищу лучший прокси... Подождите немного...")
     
     proxy_link, region, ping = get_best_proxy()
     
@@ -1183,5 +1183,6 @@ if __name__ == "__main__":
     except Exception as e:
 
         print(f"\n Критическая ошибка: {e}")
+
 
 
