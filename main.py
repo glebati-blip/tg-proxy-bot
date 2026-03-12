@@ -546,7 +546,7 @@ def get_best_proxy():
                 print(f" Старый прокси лучше (по данным кэша), использую его")
                 return cached['proxy_link'], cached['region'], cached['ping']
             else:
-                print(f"🆕 Новый прокси лучше, обновляю кэш")
+                print(f" Новый прокси лучше, обновляю кэш")
                 update_best_proxy({
                     'link': new_link,
                     'region': new_region,
@@ -555,7 +555,7 @@ def get_best_proxy():
                 })
                 return new_link, new_region, new_ping
     else:
-        print(f"🆕 Первый лучший прокси, сохраняю в кэш")
+        print(f" Первый лучший прокси, сохраняю в кэш")
         update_best_proxy({
             'link': new_link,
             'region': new_region,
@@ -692,7 +692,7 @@ async def proxy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_allowed(user_id):
         return
     
-    msg = await update.message.reply_text("🔍 Ищу лучший прокси... Подожди немного...")
+    msg = await update.message.reply_text(" Ищу лучший прокси... Подожди немного...")
     
     proxy_link, region, ping = get_best_proxy()
     
@@ -702,7 +702,7 @@ async def proxy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cached = get_cached_best_proxy()
         cache_info = ""
         if cached:
-            cache_info = f"\n📦 В кэше с: {cached['times_selected']} использований"
+            cache_info = f"\n В кэше с: {cached['times_selected']} использований"
         
         message = (
             f"<b> ЛУЧШИЙ ПРОКСИ СЕЙЧАС</b>\n\n"
@@ -713,7 +713,7 @@ async def proxy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"<b> Пинг:</b> {ping*1000:.0f}ms{cache_info}"
         )
         
-        keyboard = [[InlineKeyboardButton("🔗 ПОДКЛЮЧИТЬСЯ", url=proxy_link)]]
+        keyboard = [[InlineKeyboardButton(" ПОДКЛЮЧИТЬСЯ", url=proxy_link)]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await msg.edit_text(
@@ -744,7 +744,7 @@ async def cached_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"<b> Выбран:</b> {cached['selected_date']}"
         )
         
-        keyboard = [[InlineKeyboardButton("🔗 ПОДКЛЮЧИТЬСЯ", url=cached['proxy_link'])]]
+        keyboard = [[InlineKeyboardButton(" ПОДКЛЮЧИТЬСЯ", url=cached['proxy_link'])]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
@@ -1183,4 +1183,5 @@ if __name__ == "__main__":
     except Exception as e:
 
         print(f"\n Критическая ошибка: {e}")
+
 
