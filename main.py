@@ -11,7 +11,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
+from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler, BotCommand
 
 load_dotenv()
 
@@ -19,7 +19,7 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 ADMIN_ID = int(os.getenv('CHAT_ID'))
 
 if not BOT_TOKEN or not ADMIN_ID:
-    print("❌ ОШИБКА: Не найден BOT_TOKEN или CHAT_ID в .env файле!")
+    print(" ОШИБКА: Не найден BOT_TOKEN или CHAT_ID в .env файле!")
     print("Создай файл .env с содержимым:")
     print("BOT_TOKEN=твой_токен")
     print("CHAT_ID=твой_id")
@@ -37,7 +37,7 @@ def init_database():
             is_allowed BOOLEAN DEFAULT 0,
             is_blocked BOOLEAN DEFAULT 0,
             is_admin BOOLEAN DEFAULT 0,
-            interval_minutes INTEGER DEFAULT 15,
+            interval_minutes INTEGER DEFAULT 0,
             joined_date TIMESTAMP,
             last_active TIMESTAMP
         )
@@ -98,7 +98,7 @@ def init_database():
     
     conn.commit()
     conn.close()
-    print("✅ База данных инициализирована")
+    print(" База данных инициализирована")
 
 def execute_query(query, params=(), fetch_one=False, fetch_all=False, commit=False):
     conn = None
@@ -119,7 +119,7 @@ def execute_query(query, params=(), fetch_one=False, fetch_all=False, commit=Fal
         else:
             return cursor
     except Exception as e:
-        print(f"❌ Ошибка БД: {e}")
+        print(f" Ошибка БД: {e}")
         return None if not fetch_one and not fetch_all else []
     finally:
         if conn:
@@ -255,7 +255,7 @@ def get_user_interval(user_id):
         (user_id,), 
         fetch_one=True
     )
-    return result['interval_minutes'] if result else 15
+    return result['interval_minutes'] if result else 0
 
 def get_all_allowed_users_with_intervals():
     return execute_query(
@@ -429,7 +429,7 @@ def check_proxy(p):
     return proxy_data
 
 def collect_proxies():
-    print(f"\n🚀 [{datetime.now().strftime('%H:%M:%S')}] Начинаю сбор прокси...")
+    print(f"\n [{datetime.now().strftime('%H:%M:%S')}] Начинаю сбор прокси...")
     all_raw = set()
 
     for url in SOURCES:
@@ -445,7 +445,7 @@ def collect_proxies():
         except Exception as e:
             print(f"  ✗ {name} -> {e}")
 
-    print(f"⚡ Проверяю {len(all_raw)} прокси...")
+    print(f" Проверяю {len(all_raw)} прокси...")
     valid = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as exc:
         futures = {exc.submit(check_proxy, p): p for p in all_raw}
@@ -457,7 +457,7 @@ def collect_proxies():
     ru = sorted([x for x in valid if x['region'] == 'ru'], key=lambda x: x['ping'])
     eu = sorted([x for x in valid if x['region'] == 'eu'], key=lambda x: x['ping'])
     
-    print(f"✅ Найдено: RU={len(ru)}, EU={len(eu)}, Всего={len(valid)}")
+    print(f" Найдено: RU={len(ru)}, EU={len(eu)}, Всего={len(valid)}")
     
     return ru, eu, valid
 
@@ -495,8 +495,8 @@ def get_best_proxy():
         time_diff = datetime.now() - datetime.fromisoformat(cached['selected_date'].replace(' ', 'T'))
         hours_passed = time_diff.total_seconds() / 3600
         
-        print(f"📊 Кэшированный прокси выбран: {hours_passed:.1f} часов назад")
-        print(f"📊 Сравнение: старый пинг {cached['ping']*1000:.0f}ms vs новый {new_ping*1000:.0f}ms")
+        print(f" Кэшированный прокси выбран: {hours_passed:.1f} часов назад")
+        print(f" Сравнение: старый пинг {cached['ping']*1000:.0f}ms vs новый {new_ping*1000:.0f}ms")
         
         if hours_passed > 24:
             print(f"🕐 Кэш устарел ({hours_passed:.1f} часов > 24), обновляю...")
@@ -514,7 +514,7 @@ def get_best_proxy():
                 print(f"📡 Новый пинг старого прокси: {old_ping*1000:.0f}ms")
                 
                 if old_ping <= new_ping:
-                    print(f"✅ Старый прокси все еще лучше, обновляю кэш с новым пингом")
+                    print(f" Старый прокси все еще лучше, обновляю кэш с новым пингом")
                     update_best_proxy({
                         'link': cached['proxy_link'],
                         'region': cached['region'],
@@ -523,7 +523,7 @@ def get_best_proxy():
                     })
                     return cached['proxy_link'], cached['region'], old_ping
                 else:
-                    print(f"🆕 Новый прокси лучше, обновляю кэш")
+                    print(f" Новый прокси лучше, обновляю кэш")
                     update_best_proxy({
                         'link': new_link,
                         'region': new_region,
@@ -541,10 +541,10 @@ def get_best_proxy():
                 })
                 return new_link, new_region, new_ping
         else:
-            print(f"✅ Кэш свежий ({hours_passed:.1f} часов), сравниваю старый пинг с новым")
+            print(f" Кэш свежий ({hours_passed:.1f} часов), сравниваю старый пинг с новым")
             
             if cached['ping'] <= new_ping:
-                print(f"✅ Старый прокси лучше (по данным кэша), использую его")
+                print(f" Старый прокси лучше (по данным кэша), использую его")
                 return cached['proxy_link'], cached['region'], cached['ping']
             else:
                 print(f"🆕 Новый прокси лучше, обновляю кэш")
@@ -581,7 +581,7 @@ def send_telegram_message(chat_id, text, proxy_link=None, keyboard=None):
         keyboard = {
             "inline_keyboard": [[
                 {
-                    "text": "🔗 ПОДКЛЮЧИТЬСЯ",
+                    "text": " ПОДКЛЮЧИТЬСЯ",
                     "url": proxy_link
                 }
             ]]
@@ -592,37 +592,37 @@ def send_telegram_message(chat_id, text, proxy_link=None, keyboard=None):
         response = requests.post(url, json=data, timeout=10)
         return response.status_code == 200
     except Exception as e:
-        print(f"❌ Ошибка отправки: {e}")
+        print(f" Ошибка отправки: {e}")
         return False
 
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
     if user_id != ADMIN_ID:
-        await update.message.reply_text("⛔️ У вас нет прав администратора")
+        await update.message.reply_text(" У вас нет прав администратора")
         return
     
     pending = get_pending_requests()
     allowed = get_allowed_users()
     blocked = get_blocked_users()
     
-    text = "<b>👑 ПАНЕЛЬ АДМИНИСТРАТОРА</b>\n\n"
+    text = "<b> ПАНЕЛЬ АДМИНИСТРАТОРА</b>\n\n"
     
-    text += f"<b>⏳ ОЖИДАЮТ ЗАПРОСОВ: {len(pending)}</b>\n"
+    text += f"<b> ОЖИДАЮТ ЗАПРОСОВ: {len(pending)}</b>\n"
     if pending:
         for req in pending[:3]:
             text += f"• {req['first_name']} (@{req['username']}) - {req['request_date'][:16]}\n"
     else:
         text += "• Нет ожидающих запросов\n"
     
-    text += f"\n<b>✅ РАЗРЕШЕНО: {len(allowed)}</b>\n"
-    text += f"<b>🔒 ЗАБЛОКИРОВАНО: {len(blocked)}</b>\n"
+    text += f"\n<b> РАЗРЕШЕНО: {len(allowed)}</b>\n"
+    text += f"<b> ЗАБЛОКИРОВАНО: {len(blocked)}</b>\n"
     
     keyboard = [
-        [InlineKeyboardButton("📋 СПИСОК ЗАПРОСОВ", callback_data="admin_list_requests")],
-        [InlineKeyboardButton("👥 РАЗРЕШЕННЫЕ", callback_data="admin_list_allowed")],
-        [InlineKeyboardButton("🔒 ЗАБЛОКИРОВАННЫЕ", callback_data="admin_list_blocked")],
-        [InlineKeyboardButton("📊 СТАТИСТИКА", callback_data="admin_stats")]
+        [InlineKeyboardButton(" СПИСОК ЗАПРОСОВ", callback_data="admin_list_requests")],
+        [InlineKeyboardButton(" РАЗРЕШЕННЫЕ", callback_data="admin_list_allowed")],
+        [InlineKeyboardButton(" ЗАБЛОКИРОВАННЫЕ", callback_data="admin_list_blocked")],
+        [InlineKeyboardButton(" СТАТИСТИКА", callback_data="admin_stats")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -644,9 +644,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         interval_text = f"каждые {interval} минут" if interval > 0 else "выключена"
         
         await update.message.reply_text(
-            f"<b>👋 Добро пожаловать, {first_name}!</b>\n\n"
-            f"✅ У вас есть доступ к боту\n"
-            f"⚡️ Ваш интервал: {interval_text}\n\n"
+            f"<b> Добро пожаловать, {first_name}!</b>\n\n"
+            f" У вас есть доступ к боту\n"
+            f" Ваш интервал: {interval_text}\n\n"
             f"Команды:\n"
             f"/proxy - получить лучший прокси сейчас\n"
             f"/settings - настройки интервала\n"
@@ -657,7 +657,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         if has_pending_request(user_id):
             await update.message.reply_text(
-                "⏳ <b>Ваш запрос уже рассматривается</b>\n\n"
+                " <b>Ваш запрос уже рассматривается</b>\n\n"
                 "Вы получите уведомление, когда администратор одобрит доступ.",
                 parse_mode='HTML'
             )
@@ -666,13 +666,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             keyboard = {
                 "inline_keyboard": [[
-                    {"text": "✅ РАЗРЕШИТЬ", "callback_data": f"approve_{user_id}"},
-                    {"text": "❌ ОТКЛОНИТЬ", "callback_data": f"reject_{user_id}"}
+                    {"text": " РАЗРЕШИТЬ", "callback_data": f"approve_{user_id}"},
+                    {"text": " ОТКЛОНИТЬ", "callback_data": f"reject_{user_id}"}
                 ]]
             }
             
             admin_text = (
-                f"<b>🔔 НОВЫЙ ЗАПРОС ДОСТУПА</b>\n\n"
+                f"<b> НОВЫЙ ЗАПРОС ДОСТУПА</b>\n\n"
                 f"<b>Пользователь:</b> {first_name}\n"
                 f"<b>Username:</b> @{username}\n"
                 f"<b>ID:</b> <code>{user_id}</code>\n"
@@ -682,7 +682,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             send_telegram_message(ADMIN_ID, admin_text, keyboard=keyboard)
             
             await update.message.reply_text(
-                "👋 <b>Запрос отправлен администратору</b>\n\n"
+                " <b>Запрос отправлен администратору</b>\n\n"
                 "Вы получите уведомление, когда доступ будет одобрен.",
                 parse_mode='HTML'
             )
@@ -706,12 +706,12 @@ async def proxy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             cache_info = f"\n📦 В кэше с: {cached['times_selected']} использований"
         
         message = (
-            f"<b>🔴 ЛУЧШИЙ ПРОКСИ СЕЙЧАС</b>\n\n"
+            f"<b> ЛУЧШИЙ ПРОКСИ СЕЙЧАС</b>\n\n"
             f"<code>{proxy_link}</code>\n\n"
-            f"<b>📊 Статус:</b> ✅ Рабочий\n"
-            f"<b>⏱ Проверен:</b> {current_time}\n"
-            f"<b>📍 Регион:</b> {region}\n"
-            f"<b>⚡️ Пинг:</b> {ping*1000:.0f}ms{cache_info}"
+            f"<b> Статус:</b>  Рабочий\n"
+            f"<b> Проверен:</b> {current_time}\n"
+            f"<b> Регион:</b> {region}\n"
+            f"<b> Пинг:</b> {ping*1000:.0f}ms{cache_info}"
         )
         
         keyboard = [[InlineKeyboardButton("🔗 ПОДКЛЮЧИТЬСЯ", url=proxy_link)]]
@@ -724,7 +724,7 @@ async def proxy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             disable_web_page_preview=True
         )
     else:
-        await msg.edit_text("❌ Не найдено рабочих прокси. Попробуй позже.")
+        await msg.edit_text(" Не найдено рабочих прокси. Попробуй позже.")
 
 async def cached_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -736,13 +736,13 @@ async def cached_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if cached:
         message = (
-            f"<b>📦 КЭШИРОВАННЫЙ ПРОКСИ</b>\n\n"
+            f"<b> КЭШИРОВАННЫЙ ПРОКСИ</b>\n\n"
             f"<code>{cached['proxy_link']}</code>\n\n"
-            f"<b>📍 Регион:</b> {cached['region']}\n"
-            f"<b>⚡️ Пинг:</b> {cached['ping']*1000:.0f}ms\n"
-            f"<b>🌐 Домен:</b> {cached['domain']}\n"
-            f"<b>📊 Использован:</b> {cached['times_selected']} раз\n"
-            f"<b>📅 Выбран:</b> {cached['selected_date']}"
+            f"<b> Регион:</b> {cached['region']}\n"
+            f"<b> Пинг:</b> {cached['ping']*1000:.0f}ms\n"
+            f"<b> Домен:</b> {cached['domain']}\n"
+            f"<b> Использован:</b> {cached['times_selected']} раз\n"
+            f"<b> Выбран:</b> {cached['selected_date']}"
         )
         
         keyboard = [[InlineKeyboardButton("🔗 ПОДКЛЮЧИТЬСЯ", url=cached['proxy_link'])]]
@@ -755,7 +755,7 @@ async def cached_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             disable_web_page_preview=True
         )
     else:
-        await update.message.reply_text("❌ Кэш пуст")
+        await update.message.reply_text(" Кэш пуст")
 
 async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -786,7 +786,7 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     interval_text = f"каждые {current_interval} минут" if current_interval > 0 else "выключена"
     
     await update.message.reply_text(
-        f"<b>⚙️ Настройки интервала</b>\n\n"
+        f"<b> Настройки интервала</b>\n\n"
         f"Текущий интервал: <b>{interval_text}</b>\n\n"
         f"Выбери новый интервал:",
         parse_mode='HTML',
@@ -810,25 +810,25 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     cached = get_cached_best_proxy()
     
-    stats_text = f"<b>📊 СТАТИСТИКА БОТА</b>\n\n"
-    stats_text += f"👥 Пользователей: {users_count}\n"
-    stats_text += f"🔒 Заблокировано: {blocked_count}\n"
-    stats_text += f"⏳ Ожидают: {pending_count}\n"
-    stats_text += f"📡 Источников: {len(SOURCES)}\n\n"
+    stats_text = f"<b> СТАТИСТИКА БОТА</b>\n\n"
+    stats_text += f" Пользователей: {users_count}\n"
+    stats_text += f" Заблокировано: {blocked_count}\n"
+    stats_text += f" Ожидают: {pending_count}\n"
+    stats_text += f" Источников: {len(SOURCES)}\n\n"
     
     if last_check:
         stats_text += f"<b>Последняя проверка:</b>\n"
-        stats_text += f"🕐 {last_check['check_date'][:19]}\n"
-        stats_text += f"📊 Всего: {last_check['total_found']} (RU:{last_check['ru_found']}, EU:{last_check['eu_found']})\n"
+        stats_text += f" {last_check['check_date'][:19]}\n"
+        stats_text += f" Всего: {last_check['total_found']} (RU:{last_check['ru_found']}, EU:{last_check['eu_found']})\n"
     
     if cached:
-        stats_text += f"\n<b>🏆 Лучший в кэше:</b>\n"
-        stats_text += f"⚡️ Пинг: {cached['ping']*1000:.0f}ms\n"
-        stats_text += f"📍 Регион: {cached['region']}\n"
-        stats_text += f"📊 Использован: {cached['times_selected']} раз"
+        stats_text += f"\n<b> Лучший в кэше:</b>\n"
+        stats_text += f" Пинг: {cached['ping']*1000:.0f}ms\n"
+        stats_text += f" Регион: {cached['region']}\n"
+        stats_text += f" Использован: {cached['times_selected']} раз"
     
     if user_id == ADMIN_ID:
-        stats_text += f"\n\n👑 Вы администратор. Используйте /admin для панели управления."
+        stats_text += f"\n\n Вы администратор. Используйте /admin для панели управления."
     
     await update.message.reply_text(stats_text, parse_mode='HTML')
 
@@ -841,7 +841,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if any(data.startswith(prefix) for prefix in ['approve_', 'reject_', 'block_', 'unblock_', 'admin_']):
         if user_id != ADMIN_ID:
-            await query.edit_message_text("⛔️ У вас нет прав администратора")
+            await query.edit_message_text("У вас нет прав администратора")
             return
         
         if data.startswith('approve_'):
@@ -863,12 +863,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             approve_user(target_id)
             
             await query.edit_message_text(
-                f"✅ Пользователь {first_name} (ID: {target_id}) получил доступ"
+                f"Пользователь {first_name} (ID: {target_id}) получил доступ"
             )
             
             send_telegram_message(
                 target_id,
-                "<b>✅ Доступ разрешен!</b>\n\n"
+                "<b>Доступ разрешен!</b>\n\n"
                 "Теперь вы можете пользоваться ботом.\n"
                 "Отправьте /start для начала работы."
             )
@@ -887,14 +887,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reject_user(target_id)
             
             await query.edit_message_text(
-                f"❌ Запрос от {first_name} (ID: {target_id}) отклонен"
+                f"Запрос от {first_name} (ID: {target_id}) отклонен"
             )
         
         elif data.startswith('block_'):
             target_id = int(data.split('_')[1])
             
             if target_id == ADMIN_ID:
-                await query.edit_message_text("❌ Нельзя заблокировать администратора")
+                await query.edit_message_text("Нельзя заблокировать администратора")
                 return
             
             user_info = execute_query(
@@ -907,7 +907,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             if block_user(target_id):
                 await query.edit_message_text(
-                    f"🔒 Пользователь {first_name} (ID: {target_id}) заблокирован"
+                    f" Пользователь {first_name} (ID: {target_id}) заблокирован"
                 )
         
         elif data.startswith('unblock_'):
@@ -924,17 +924,17 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             unblock_user(target_id)
             
             await query.edit_message_text(
-                f"🔓 Пользователь {first_name} (ID: {target_id}) разблокирован"
+                f" Пользователь {first_name} (ID: {target_id}) разблокирован"
             )
         
         elif data == "admin_list_requests":
             pending = get_pending_requests()
             
             if not pending:
-                await query.edit_message_text("📋 Нет ожидающих запросов")
+                await query.edit_message_text(" Нет ожидающих запросов")
                 return
             
-            text = "<b>⏳ ОЖИДАЮТ ЗАПРОСЫ</b>\n\n"
+            text = "<b> ОЖИДАЮТ ЗАПРОСЫ</b>\n\n"
             
             keyboard = []
             for req in pending[:10]:
@@ -942,14 +942,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 first_name = req['first_name'][:15]
                 btn_text = f"{first_name} (@{req['username']})"
                 keyboard.append([
-                    InlineKeyboardButton(f"✅ {btn_text}", callback_data=f"approve_{user_id}"),
-                    InlineKeyboardButton(f"❌", callback_data=f"reject_{user_id}")
+                    InlineKeyboardButton(f" {btn_text}", callback_data=f"approve_{user_id}"),
+                    InlineKeyboardButton(f"", callback_data=f"reject_{user_id}")
                 ])
             
             if len(pending) > 10:
                 text += f"Показаны первые 10 из {len(pending)} запросов\n\n"
             
-            keyboard.append([InlineKeyboardButton("◀️ НАЗАД", callback_data="admin_back")])
+            keyboard.append([InlineKeyboardButton(" НАЗАД", callback_data="admin_back")])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             await query.edit_message_text(text, parse_mode='HTML', reply_markup=reply_markup)
@@ -958,7 +958,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             users = get_allowed_users()
             
             if not users:
-                await query.edit_message_text("📋 Нет разрешенных пользователей")
+                await query.edit_message_text(" Нет разрешенных пользователей")
                 return
             
             text = "<b>👥 РАЗРЕШЕННЫЕ ПОЛЬЗОВАТЕЛИ</b>\n\n"
@@ -971,13 +971,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 interval_text = f"{interval}мин" if interval > 0 else "выкл"
                 btn_text = f"{first_name} (@{user['username']}) [{interval_text}]"
                 keyboard.append([
-                    InlineKeyboardButton(f"🔒 {btn_text}", callback_data=f"block_{target_id}")
+                    InlineKeyboardButton(f" {btn_text}", callback_data=f"block_{target_id}")
                 ])
             
             if len(users) > 10:
                 text += f"Показаны первые 10 из {len(users)} пользователей\n\n"
             
-            keyboard.append([InlineKeyboardButton("◀️ НАЗАД", callback_data="admin_back")])
+            keyboard.append([InlineKeyboardButton(" НАЗАД", callback_data="admin_back")])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             await query.edit_message_text(text, parse_mode='HTML', reply_markup=reply_markup)
@@ -986,10 +986,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             users = get_blocked_users()
             
             if not users:
-                await query.edit_message_text("📋 Нет заблокированных пользователей")
+                await query.edit_message_text(" Нет заблокированных пользователей")
                 return
             
-            text = "<b>🔒 ЗАБЛОКИРОВАННЫЕ ПОЛЬЗОВАТЕЛИ</b>\n\n"
+            text = "<b> ЗАБЛОКИРОВАННЫЕ ПОЛЬЗОВАТЕЛИ</b>\n\n"
             
             keyboard = []
             for user in users[:10]:
@@ -997,13 +997,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 first_name = user['first_name'][:15]
                 btn_text = f"{first_name} (@{user['username']})"
                 keyboard.append([
-                    InlineKeyboardButton(f"🔓 {btn_text}", callback_data=f"unblock_{target_id}")
+                    InlineKeyboardButton(f" {btn_text}", callback_data=f"unblock_{target_id}")
                 ])
             
             if len(users) > 10:
                 text += f"Показаны первые 10 из {len(users)} пользователей\n\n"
             
-            keyboard.append([InlineKeyboardButton("◀️ НАЗАД", callback_data="admin_back")])
+            keyboard.append([InlineKeyboardButton(" НАЗАД", callback_data="admin_back")])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             await query.edit_message_text(text, parse_mode='HTML', reply_markup=reply_markup)
@@ -1024,10 +1024,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 LIMIT 5
             ''', fetch_all=True) or []
             
-            text = "<b>📊 ДЕТАЛЬНАЯ СТАТИСТИКА</b>\n\n"
-            text += f"👥 Разрешено: {users_count}\n"
-            text += f"🔒 Заблокировано: {blocked_count}\n"
-            text += f"⏳ В очереди: {pending_count}\n\n"
+            text = "<b> ДЕТАЛЬНАЯ СТАТИСТИКА</b>\n\n"
+            text += f" Разрешено: {users_count}\n"
+            text += f" Заблокировано: {blocked_count}\n"
+            text += f" В очереди: {pending_count}\n\n"
             
             if checks:
                 text += "<b>Последние проверки:</b>\n"
@@ -1035,7 +1035,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text += f"• {check['check_date'][:16]} - {check['total_found']} прокси\n"
             
             if top_proxies:
-                text += f"\n<b>🏆 ТОП-5 ПРОКСИ:</b>\n"
+                text += f"\n<b> ТОП-5 ПРОКСИ:</b>\n"
                 for i, proxy in enumerate(top_proxies, 1):
                     text += f"{i}. Пинг: {proxy['ping']*1000:.0f}ms, использован: {proxy['times_selected']} раз\n"
             
@@ -1049,16 +1049,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             allowed = get_allowed_users()
             blocked = get_blocked_users()
             
-            text = "<b>👑 ПАНЕЛЬ АДМИНИСТРАТОРА</b>\n\n"
-            text += f"⏳ Ожидают: {len(pending)}\n"
-            text += f"✅ Разрешено: {len(allowed)}\n"
-            text += f"🔒 Заблокировано: {len(blocked)}\n"
+            text = "<b> ПАНЕЛЬ АДМИНИСТРАТОРА</b>\n\n"
+            text += f" Ожидают: {len(pending)}\n"
+            text += f" Разрешено: {len(allowed)}\n"
+            text += f" Заблокировано: {len(blocked)}\n"
             
             keyboard = [
-                [InlineKeyboardButton("📋 СПИСОК ЗАПРОСОВ", callback_data="admin_list_requests")],
-                [InlineKeyboardButton("👥 РАЗРЕШЕННЫЕ", callback_data="admin_list_allowed")],
-                [InlineKeyboardButton("🔒 ЗАБЛОКИРОВАННЫЕ", callback_data="admin_list_blocked")],
-                [InlineKeyboardButton("📊 СТАТИСТИКА", callback_data="admin_stats")]
+                [InlineKeyboardButton(" СПИСОК ЗАПРОСОВ", callback_data="admin_list_requests")],
+                [InlineKeyboardButton(" РАЗРЕШЕННЫЕ", callback_data="admin_list_allowed")],
+                [InlineKeyboardButton(" ЗАБЛОКИРОВАННЫЕ", callback_data="admin_list_blocked")],
+                [InlineKeyboardButton(" СТАТИСТИКА", callback_data="admin_stats")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
@@ -1066,7 +1066,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif data.startswith('interval_'):
         if not is_allowed(user_id):
-            await query.edit_message_text("⛔️ У вас нет доступа")
+            await query.edit_message_text(" У вас нет доступа")
             return
         
         interval = int(data.split('_')[1])
@@ -1075,7 +1075,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         interval_text = f"каждые {interval} минут" if interval > 0 else "выключена"
         
         await query.edit_message_text(
-            f"✅ Интервал изменен\n\n"
+            f" Интервал изменен\n\n"
             f"Теперь авторассылка будет {interval_text}"
         )
 
@@ -1084,22 +1084,22 @@ def send_proxy_to_user(user_id, proxy_link, region, ping):
         return False
     
     message = (
-        f"<b>🔴 АВТОМАТИЧЕСКИЙ ПРОКСИ</b>\n\n"
+        f"<b> АВТОМАТИЧЕСКИЙ ПРОКСИ</b>\n\n"
         f"<code>{proxy_link}</code>\n\n"
-        f"<b>📍 Регион:</b> {region}\n"
-        f"<b>⚡️ Пинг:</b> {ping*1000:.0f}ms\n"
-        f"<b>⏱ Время:</b> {datetime.now().strftime('%H:%M')}\n\n"
-        f"👇 <b>Нажми кнопку для подключения</b>"
+        f"<b> Регион:</b> {region}\n"
+        f"<b> Пинг:</b> {ping*1000:.0f}ms\n"
+        f"<b> Время:</b> {datetime.now().strftime('%H:%M')}\n\n"
+        f"<b>Нажми кнопку для подключения</b>"
     )
     return send_telegram_message(user_id, message, proxy_link)
 
 def scheduled_job():
-    print(f"\n🔄 [{datetime.now().strftime('%H:%M:%S')}] Запуск автоматической рассылки...")
+    print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Запуск автоматической рассылки...")
     
     proxy_link, region, ping = get_best_proxy()
     
     if not proxy_link:
-        print("❌ Нет прокси для отправки")
+        print(" Нет прокси для отправки")
         return
     
     users = get_all_allowed_users_with_intervals()
@@ -1114,30 +1114,44 @@ def scheduled_job():
                 sent_count += 1
             time.sleep(0.1)
     
-    print(f"✅ Отправлено {sent_count} пользователям")
-
+    print(f" Отправлено {sent_count} пользователям")
+async def set_bot_commands(app):
+    commands = [
+        BotCommand("start", "Запустить бота"),
+        BotCommand("proxy", "Получить лучший прокси"),
+        BotCommand("settings", "Настройки интервала"),
+        BotCommand("stats", "Статистика"),
+        BotCommand("cached", "Информация о кэше"),
+    ]
+    await app.bot.set_my_commands(commands)
+    print("Команды бота установлены (без админки)")
+    
 def run_telegram_bot():
     app = Application.builder().token(BOT_TOKEN).build()
+    
+    # Устанавливаем команды при запуске
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(set_bot_commands(app))
     
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("proxy", proxy_command))
     app.add_handler(CommandHandler("cached", cached_command))
     app.add_handler(CommandHandler("settings", settings_command))
     app.add_handler(CommandHandler("stats", stats_command))
-    app.add_handler(CommandHandler("admin", admin_command))
+    app.add_handler(CommandHandler("admin", admin_command))  # админка остается, но в меню не видна
     app.add_handler(CallbackQueryHandler(button_callback))
     
-    print("🤖 Telegram бот запущен и ждет команды...")
+    print("Telegram бот запущен и ждет команды...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
-
 def setup_schedules():
     schedule.every(15).minutes.do(scheduled_job)
-    print("⏰ Расписания настроены")
+    print(" Расписания настроены")
 
 def run_scheduler():
-    print("⏰ Планировщик запущен...")
+    print(" Планировщик запущен...")
     
-    scheduled_job()
     
     setup_schedules()
     
@@ -1149,12 +1163,12 @@ def main():
     init_database()
     
     print("=" * 50)
-    print("🚀 ЗАПУСК ПРОКСИ БОТА С ПОЛНОЙ АДМИНКОЙ")
+    print(" ЗАПУСК ПРОКСИ БОТА С ПОЛНОЙ АДМИНКОЙ")
     print("=" * 50)
-    print(f"👑 Админ ID: {ADMIN_ID}")
-    print(f"👥 Пользователей: {get_allowed_users_count()}")
-    print(f"🔒 Заблокировано: {get_blocked_users_count()}")
-    print(f"⏳ Ожидают: {get_pending_requests_count()}")
+    print(f" Админ ID: {ADMIN_ID}")
+    print(f" Пользователей: {get_allowed_users_count()}")
+    print(f" Заблокировано: {get_blocked_users_count()}")
+    print(f" Ожидают: {get_pending_requests_count()}")
     print("=" * 50)
     
     scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
@@ -1166,6 +1180,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n👋 Бот остановлен пользователем")
+        print("\n Бот остановлен пользователем")
     except Exception as e:
-        print(f"\n❌ Критическая ошибка: {e}")
+
+        print(f"\n Критическая ошибка: {e}")
