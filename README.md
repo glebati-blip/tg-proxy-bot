@@ -29,7 +29,7 @@
 1. Клонируйте репозиторий:
 ```bash
 git clone https://github.com/glebati-blip/tg-proxy-bot
-cd telegram-proxy-bot
+cd tg-proxy-bot
 ```
 Установите зависимости:
 
