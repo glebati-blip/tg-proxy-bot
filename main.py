@@ -495,56 +495,40 @@ def get_best_proxy():
         hours_passed = time_diff.total_seconds() / 3600
         
         print(f" Кэшированный прокси выбран: {hours_passed:.1f} часов назад")
-        print(f" Сравнение: старый пинг {cached['ping']*1000:.0f}ms vs новый {new_ping*1000:.0f}ms")
         
+        # Если кэш старше 24 часов - игнорируем его полностью
         if hours_passed > 24:
-            print(f" Кэш устарел ({hours_passed:.1f} часов > 24), обновляю...")
+            print(f"🕐 Кэш устарел ({hours_passed:.1f} часов > 24), использую новый прокси")
+            update_best_proxy({
+                'link': new_link,
+                'region': new_region,
+                'ping': new_ping,
+                'domain': new_domain
+            })
+            return new_link, new_region, new_ping
+        
+        # Если кэш свежий - пингуем старый прокси для сравнения
+        print(f"📡 Пингую старый прокси для сравнения...")
+        old_proxy_data = None
+        
+        match = re.search(r'server=([^&]+)&port=(\d+)&secret=([^&\s]+)', cached['proxy_link'])
+        if match:
+            host, port, secret = match.groups()
+            old_proxy_data = check_proxy((host, int(port), secret))
+        
+        if old_proxy_data:
+            old_ping = old_proxy_data['ping']
+            print(f"📡 Пинг старого: {old_ping*1000:.0f}ms, нового: {new_ping*1000:.0f}ms")
             
-            print(f" Пингую старый прокси: {cached['proxy_link'][:50]}...")
-            old_proxy_data = None
-            
-            match = re.search(r'server=([^&]+)&port=(\d+)&secret=([^&\s]+)', cached['proxy_link'])
-            if match:
-                host, port, secret = match.groups()
-                old_proxy_data = check_proxy((host, int(port), secret))
-            
-            if old_proxy_data:
-                old_ping = old_proxy_data['ping']
-                print(f"📡 Новый пинг старого прокси: {old_ping*1000:.0f}ms")
-                
-                if old_ping <= new_ping:
-                    print(f" Старый прокси все еще лучше, обновляю кэш с новым пингом")
-                    update_best_proxy({
-                        'link': cached['proxy_link'],
-                        'region': cached['region'],
-                        'ping': old_ping,
-                        'domain': cached['domain']
-                    })
-                    return cached['proxy_link'], cached['region'], old_ping
-                else:
-                    print(f" Новый прокси лучше, обновляю кэш")
-                    update_best_proxy({
-                        'link': new_link,
-                        'region': new_region,
-                        'ping': new_ping,
-                        'domain': new_domain
-                    })
-                    return new_link, new_region, new_ping
-            else:
-                print(f" Старый прокси не отвечает, использую новый")
+            if old_ping <= new_ping:
+                print(f" Старый прокси лучше, обновляю кэш с новым пингом")
                 update_best_proxy({
-                    'link': new_link,
-                    'region': new_region,
-                    'ping': new_ping,
-                    'domain': new_domain
+                    'link': cached['proxy_link'],
+                    'region': cached['region'],
+                    'ping': old_ping,
+                    'domain': cached['domain']
                 })
-                return new_link, new_region, new_ping
-        else:
-            print(f" Кэш свежий ({hours_passed:.1f} часов), сравниваю старый пинг с новым")
-            
-            if cached['ping'] <= new_ping:
-                print(f" Старый прокси лучше (по данным кэша), использую его")
-                return cached['proxy_link'], cached['region'], cached['ping']
+                return cached['proxy_link'], cached['region'], old_ping
             else:
                 print(f" Новый прокси лучше, обновляю кэш")
                 update_best_proxy({
@@ -554,8 +538,17 @@ def get_best_proxy():
                     'domain': new_domain
                 })
                 return new_link, new_region, new_ping
+        else:
+            print(f"❌ Старый прокси не отвечает, использую новый")
+            update_best_proxy({
+                'link': new_link,
+                'region': new_region,
+                'ping': new_ping,
+                'domain': new_domain
+            })
+            return new_link, new_region, new_ping
     else:
-        print(f" Первый лучший прокси, сохраняю в кэш")
+        print(f"🆕 Первый лучший прокси, сохраняю в кэш")
         update_best_proxy({
             'link': new_link,
             'region': new_region,
@@ -1183,6 +1176,7 @@ if __name__ == "__main__":
     except Exception as e:
 
         print(f"\n Критическая ошибка: {e}")
+
 
 
 
