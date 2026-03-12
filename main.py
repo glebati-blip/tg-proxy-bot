@@ -498,7 +498,7 @@ def get_best_proxy():
         
         # Если кэш старше 24 часов - игнорируем его полностью
         if hours_passed > 24:
-            print(f"🕐 Кэш устарел ({hours_passed:.1f} часов > 24), использую новый прокси")
+            print(f" Кэш устарел ({hours_passed:.1f} часов > 24), использую новый прокси")
             update_best_proxy({
                 'link': new_link,
                 'region': new_region,
@@ -518,7 +518,7 @@ def get_best_proxy():
         
         if old_proxy_data:
             old_ping = old_proxy_data['ping']
-            print(f"📡 Пинг старого: {old_ping*1000:.0f}ms, нового: {new_ping*1000:.0f}ms")
+            print(f" Пинг старого: {old_ping*1000:.0f}ms, нового: {new_ping*1000:.0f}ms")
             
             if old_ping <= new_ping:
                 print(f" Старый прокси лучше, обновляю кэш с новым пингом")
@@ -539,7 +539,7 @@ def get_best_proxy():
                 })
                 return new_link, new_region, new_ping
         else:
-            print(f"❌ Старый прокси не отвечает, использую новый")
+            print(f" Старый прокси не отвечает, использую новый")
             update_best_proxy({
                 'link': new_link,
                 'region': new_region,
@@ -548,7 +548,7 @@ def get_best_proxy():
             })
             return new_link, new_region, new_ping
     else:
-        print(f"🆕 Первый лучший прокси, сохраняю в кэш")
+        print(f" Первый лучший прокси, сохраняю в кэш")
         update_best_proxy({
             'link': new_link,
             'region': new_region,
@@ -1176,6 +1176,7 @@ if __name__ == "__main__":
     except Exception as e:
 
         print(f"\n Критическая ошибка: {e}")
+
 
 
 
