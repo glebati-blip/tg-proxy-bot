@@ -10,9 +10,8 @@ import json
 import sqlite3
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler, BotCommand
-
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
+from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
 load_dotenv()
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -1184,3 +1183,4 @@ if __name__ == "__main__":
     except Exception as e:
 
         print(f"\n Критическая ошибка: {e}")
+
